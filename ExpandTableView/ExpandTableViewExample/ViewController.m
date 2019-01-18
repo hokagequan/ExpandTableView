@@ -13,7 +13,7 @@
 
 @property (weak, nonatomic) IBOutlet ExpandTableView *tableView;
 
-@property (nonatomic, strong) NSArray<NSDictionary*> *dataSource;
+@property (nonatomic, strong) NSMutableArray<NSDictionary*> *dataSource;
 @property (nonatomic, strong) NSMutableDictionary<NSIndexPath*, NSNumber*> *expandState;
 
 @end
@@ -24,6 +24,26 @@
     [super viewDidLoad];
     // Do any additional setup after loading the view, typically from a nib.
     self.tableView.expandDelegate = self;
+}
+
+#pragma mark - Actions
+
+- (IBAction)clickAddRoot:(id)sender {
+    NSArray *subData = @[@"Sub1", @"Sub2"];
+    int r = arc4random_uniform(74);
+    [self.dataSource insertObject:@{@"Root": [NSString stringWithFormat:@"Row%d", r], @"Child": subData} atIndex:0];
+    [self.tableView addCellAtIndexPath:[NSIndexPath indexPathForRow:0 inSection:0]];
+}
+
+- (IBAction)clickDeleteRoot:(id)sender {
+    [self.dataSource removeObjectAtIndex:0];
+    [self.tableView deleteCellAtIndexPath:[NSIndexPath indexPathForRow:0 inSection:0]];
+}
+
+- (IBAction)clickAddSub:(id)sender {
+}
+
+- (IBAction)clickDeleteSub:(id)sender {
 }
 
 #pragma mark - ExpandTableViewProtocol
@@ -78,11 +98,12 @@
 
 #pragma mark - Property
 
-- (NSArray *)dataSource {
+- (NSMutableArray *)dataSource {
     if (!_dataSource) {
         NSArray *subData = @[@"Sub1", @"Sub2"];
-        _dataSource = @[@{@"Root": @"Row1", @"Child": subData},
-                        @{@"Root": @"Row2", @"Child": subData}];
+        NSArray *source = @[@{@"Root": @"Row1", @"Child": subData},
+                            @{@"Root": @"Row2", @"Child": subData}];
+        _dataSource = [NSMutableArray arrayWithArray:source];
     }
     
     return _dataSource;

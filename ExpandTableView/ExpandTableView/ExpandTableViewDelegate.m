@@ -44,7 +44,7 @@
  */
 - (void)addCellAtIndexPath:(NSIndexPath *)indexPath {
     NSIndexPath *realIndexPath = [self realIndexPathFor:indexPath];
-    // TODO: 更新已展开的列表
+    [self reloadExpandedDataForAdd:indexPath count:1];
     [self.expandTableView insertRowsAtIndexPaths:@[realIndexPath] withRowAnimation:UITableViewRowAnimationFade];
 }
 
@@ -75,7 +75,7 @@
                    withObjectsFromArray:toChange];
     }
     
-    // TODO: 更新已展开的列表
+    [self reloadExpandedDataForAdd:parentIndexPath count:1];
     [self.expandTableView insertRowsAtIndexPaths:@[childIndexPath] withRowAnimation:UITableViewRowAnimationFade];
 }
 
@@ -98,9 +98,47 @@
     NSIndexPath *realIndexPath = [self realIndexPathFor:indexPath];
     ExpandData *data = [self dataAtOriginalIndexPath:indexPath];
     
-    if (data) {
+    if (!data) {
         // 不是展开的
+        [self reloadExpandedDataForDelete:indexPath count:1];
+        [self.expandTableView deleteRowsAtIndexPaths:@[realIndexPath] withRowAnimation:UITableViewRowAnimationFade];
     }
+    else {
+        [self reloadDataForCollapseIndexPath:indexPath expandData:data];
+        NSMutableArray *toDelete = [NSMutableArray arrayWithArray:data.children];
+        [toDelete addObject:realIndexPath];
+        [self.expandTableView deleteRowsAtIndexPaths:toDelete withRowAnimation:UITableViewRowAnimationFade];
+    }
+}
+
+- (void)deleteCellAtParentIndexPath:(NSIndexPath *)parentIndexPath atIndex:(NSInteger)index {
+    ExpandData *data = [self dataAtOriginalIndexPath:parentIndexPath];
+    if (!data) {
+        // 没有展开什么都不做
+        return;
+    }
+    
+    NSIndexPath *realIndexPath = [self realIndexPathFor:parentIndexPath];
+    NSIndexPath *childIndexPath = [NSIndexPath indexPathForRow:realIndexPath.row - index + 1
+                                                     inSection:realIndexPath.section];
+    NSMutableArray *children = [NSMutableArray arrayWithArray:data.children];
+    
+    NSMutableArray *toChange = [NSMutableArray array];
+    for (NSInteger i = index + 1; i < children.count; i++) {
+        NSIndexPath *oIndexPath = children[i];
+        NSIndexPath *nIndexPath = [NSIndexPath indexPathForRow:oIndexPath.row - 1
+                                                     inSection:oIndexPath.section];
+        [toChange addObject:nIndexPath];
+    }
+    
+    if (toChange.count > 0) {
+        [children replaceObjectsInRange:NSMakeRange(index + 1, children.count - index - 1)
+                   withObjectsFromArray:toChange];
+    }
+    
+    [children removeObject:childIndexPath];
+    [self reloadExpandedDataForDelete:parentIndexPath count:1];
+    [self.expandTableView insertRowsAtIndexPaths:@[childIndexPath] withRowAnimation:UITableViewRowAnimationFade];
 }
 
 - (void)expandCellAtIndexPath:(NSIndexPath *)indexPath {
@@ -238,10 +276,47 @@
     ExpandData *data = [[ExpandData alloc] init];
     data.originalIndexPath = indexPath;
     
+    NSInteger totalBefore = [self reloadExpandedDataForAdd:indexPath count:count];
+    NSMutableArray *newExpandData = [NSMutableArray arrayWithArray:self.expandDatas[@(indexPath.section)]];
+    
+    data.indexPath = [NSIndexPath indexPathForRow:indexPath.row + totalBefore inSection:indexPath.section];
+    
+    NSMutableArray *children = [NSMutableArray arrayWithCapacity:count];
+    for (int i = 0; i < count; i++) {
+        NSIndexPath *child = [NSIndexPath indexPathForRow:data.indexPath.row + i + 1 inSection:data.indexPath.section];
+        [children addObject:child];
+    }
+    
+    data.children = children;
+    data.childrenCount = count;
+    
+    [newExpandData addObject:data];
+    self.expandDatas[@(indexPath.section)] = newExpandData;
+    
+    return children;
+}
+
+/**
+ 收起时，重载数据
+
+ @param indexPath Root 原始的IndexPath
+ @param data 对应的展开数据
+ @return 准备删除的IndexPaths
+ */
+- (NSArray *)reloadDataForCollapseIndexPath:(NSIndexPath *)indexPath expandData:(ExpandData *)data {
+    [self reloadExpandedDataForDelete:indexPath count:data.childrenCount];
+    NSMutableArray *newExpandData = [NSMutableArray arrayWithArray:self.expandDatas[@(indexPath.section)]];
+    [newExpandData removeObject:data];
+    self.expandDatas[@(indexPath.section)] = newExpandData;
+    
+    return data.children;
+}
+
+- (NSInteger)reloadExpandedDataForAdd:(NSIndexPath *)parentIndexPath count:(NSInteger)count {
     NSInteger totalBefore = 0;
-    NSMutableArray *newExpandData = [NSMutableArray array];
-    for (ExpandData *tData in self.expandDatas[@(indexPath.section)]) {
-        if (tData.originalIndexPath.row < indexPath.row) {
+    
+    for (ExpandData *tData in self.expandDatas[@(parentIndexPath.section)]) {
+        if (tData.originalIndexPath.row < parentIndexPath.row) {
             totalBefore += tData.childrenCount;
         }
         else {
@@ -257,63 +332,26 @@
             
             tData.children = newChildren;
         }
-        
-        [newExpandData addObject:tData];
     }
     
-    data.indexPath = [NSIndexPath indexPathForRow:indexPath.row + totalBefore inSection:indexPath.section];
-    
-    NSMutableArray *children = [NSMutableArray arrayWithCapacity:count];
-    for (int i = 0; i < count; i++) {
-        NSIndexPath *child = [NSIndexPath indexPathForRow:data.indexPath.row + i + 1 inSection:data.indexPath.section];
-        [children addObject:child];
-    }
-    
-    data.children = children;
-    data.childrenCount = count;
-    [newExpandData addObject:data];
-    self.expandDatas[@(indexPath.section)] = newExpandData;
-    
-    return children;
+    return totalBefore;
 }
 
-/**
- 收起时，重载数据
-
- @param indexPath Root 原始的IndexPath
- @param data 对应的展开数据
- @return 准备删除的IndexPaths
- */
-- (NSArray *)reloadDataForCollapseIndexPath:(NSIndexPath *)indexPath expandData:(ExpandData *)data {
-    NSMutableArray *newExpandData = [NSMutableArray array];
-    for (ExpandData *tData in self.expandDatas[@(indexPath.section)]) {
-        if ([tData isEqual:data]) {
-            continue;
-        }
-        
-        if (tData.originalIndexPath.row > data.originalIndexPath.row) {
-            tData.indexPath = [NSIndexPath indexPathForRow:tData.indexPath.row - data.childrenCount
+- (void)reloadExpandedDataForDelete:(NSIndexPath *)parentIndexPath count:(NSInteger)count {
+    for (ExpandData *tData in self.expandDatas[@(parentIndexPath.section)]) {
+        if (tData.originalIndexPath.row > parentIndexPath.row) {
+            tData.indexPath = [NSIndexPath indexPathForRow:tData.indexPath.row - count
                                                  inSection:tData.indexPath.section];
             NSMutableArray *newChildren = [NSMutableArray arrayWithCapacity:tData.childrenCount];
             for (NSIndexPath *childIndexPath in tData.children) {
-                NSIndexPath *child = [NSIndexPath indexPathForRow:childIndexPath.row - data.childrenCount
+                NSIndexPath *child = [NSIndexPath indexPathForRow:childIndexPath.row - count
                                                         inSection:childIndexPath.section];
                 [newChildren addObject:child];
             }
             
             tData.children = newChildren;
         }
-        
-        [newExpandData addObject:tData];
     }
-    
-    self.expandDatas[@(indexPath.section)] = newExpandData;
-    
-    return data.children;
-}
-
-- (void)reloadExpandedDataForAdd:(NSIndexPath *)parentIndexPath childIndexPath:(NSIndexPath *)childIndexPath {
-    
 }
 
 /**
