@@ -44,8 +44,6 @@ NS_ASSUME_NONNULL_BEGIN
 - (void)expandCellAtIndexPath:(NSIndexPath *)indexPath;
 - (void)collapseCellAtIndexPath:(NSIndexPath *)indexPath;
 
-- (NSIndexPath *)originalIndexPathForCell:(UITableViewCell *)cell;
-
 - (void)addCellAtIndexPath:(NSIndexPath *)indexPath;
 - (void)addCellAtParentIndexPath:(NSIndexPath *)parentIndexPath atIndex:(NSInteger)index;
 - (void)deleteCellAtIndexPath:(NSIndexPath *)indexPath;

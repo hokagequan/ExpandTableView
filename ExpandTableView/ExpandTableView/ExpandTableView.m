@@ -57,10 +57,6 @@
     [self.etvDelegate collapseCellAtIndexPath:indexPath];
 }
 
-- (NSIndexPath *)originalIndexPathForCell:(UITableViewCell *)cell {
-    return [self.etvDelegate originalIndexPathForCell:cell];
-}
-
 #pragma mark - Property
 
 - (ExpandTableViewDelegate *)etvDelegate {

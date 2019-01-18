@@ -15,17 +15,6 @@ NS_ASSUME_NONNULL_BEGIN
 
 @property (nonatomic, weak) id<ExpandTableViewProtocol> expandDelegate;
 
-
-/**
- 只按照父Cell排列的IndexPath, 这个indexPath不能用于原生tableview的操作，如果想用
- 原生tableview操作，使用indexPathForCell方法
-
- @param cell cell
- @return 只按照父Cell排列的IndexPath
- */
-- (NSIndexPath *)originalIndexPathForCell:(UITableViewCell *)cell;
-
-
 /**
  展开Root Cell
 
