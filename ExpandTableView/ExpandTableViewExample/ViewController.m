@@ -41,9 +41,23 @@
 }
 
 - (IBAction)clickAddSub:(id)sender {
+    int r = arc4random_uniform(74);
+    NSString *toAdd = [NSString stringWithFormat:@"Sub%d", r];
+    NSMutableArray *array = [NSMutableArray arrayWithArray:self.dataSource[0][@"Child"]];
+    [array insertObject:toAdd atIndex:0];
+    NSMutableDictionary *dict = [NSMutableDictionary dictionaryWithDictionary:self.dataSource[0]];
+    dict[@"Child"] = array;
+    [self.dataSource replaceObjectAtIndex:0 withObject:dict];
+    [self.tableView addCellAtParentIndexPath:[NSIndexPath indexPathForRow:0 inSection:0] atIndex:0];
 }
 
 - (IBAction)clickDeleteSub:(id)sender {
+    NSMutableArray *array = [NSMutableArray arrayWithArray:self.dataSource[0][@"Child"]];
+    [array removeObjectAtIndex:0];
+    NSMutableDictionary *dict = [NSMutableDictionary dictionaryWithDictionary:self.dataSource[0]];
+    dict[@"Child"] = array;
+    [self.dataSource replaceObjectAtIndex:0 withObject:dict];
+    [self.tableView deleteCellAtParentIndexPath:[NSIndexPath indexPathForRow:0 inSection:0] atIndex:0];
 }
 
 #pragma mark - ExpandTableViewProtocol

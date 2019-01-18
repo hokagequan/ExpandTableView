@@ -44,7 +44,7 @@
  */
 - (void)addCellAtIndexPath:(NSIndexPath *)indexPath {
     NSIndexPath *realIndexPath = [self realIndexPathFor:indexPath];
-    [self reloadExpandedDataForAdd:indexPath count:1];
+    [self reloadExpandedDataForAdd:indexPath count:1 includeAdd:YES];
     [self.expandTableView insertRowsAtIndexPaths:@[realIndexPath] withRowAnimation:UITableViewRowAnimationFade];
 }
 
@@ -75,7 +75,9 @@
                    withObjectsFromArray:toChange];
     }
     
-    [self reloadExpandedDataForAdd:parentIndexPath count:1];
+    data.children = children;
+    data.childrenCount = data.children.count;
+    [self reloadExpandedDataForAdd:parentIndexPath count:1 includeAdd:NO];
     [self.expandTableView insertRowsAtIndexPaths:@[childIndexPath] withRowAnimation:UITableViewRowAnimationFade];
 }
 
@@ -122,9 +124,10 @@
     NSIndexPath *childIndexPath = [NSIndexPath indexPathForRow:realIndexPath.row - index + 1
                                                      inSection:realIndexPath.section];
     NSMutableArray *children = [NSMutableArray arrayWithArray:data.children];
+    [children removeObject:childIndexPath];
     
     NSMutableArray *toChange = [NSMutableArray array];
-    for (NSInteger i = index + 1; i < children.count; i++) {
+    for (NSInteger i = index; i < children.count; i++) {
         NSIndexPath *oIndexPath = children[i];
         NSIndexPath *nIndexPath = [NSIndexPath indexPathForRow:oIndexPath.row - 1
                                                      inSection:oIndexPath.section];
@@ -132,13 +135,15 @@
     }
     
     if (toChange.count > 0) {
-        [children replaceObjectsInRange:NSMakeRange(index + 1, children.count - index - 1)
+        [children replaceObjectsInRange:NSMakeRange(index, children.count - index)
                    withObjectsFromArray:toChange];
     }
     
-    [children removeObject:childIndexPath];
+    data.children = children;
+    data.childrenCount = children.count;
+    
     [self reloadExpandedDataForDelete:parentIndexPath count:1];
-    [self.expandTableView insertRowsAtIndexPaths:@[childIndexPath] withRowAnimation:UITableViewRowAnimationFade];
+    [self.expandTableView deleteRowsAtIndexPaths:@[childIndexPath] withRowAnimation:UITableViewRowAnimationFade];
 }
 
 - (void)expandCellAtIndexPath:(NSIndexPath *)indexPath {
@@ -276,7 +281,7 @@
     ExpandData *data = [[ExpandData alloc] init];
     data.originalIndexPath = indexPath;
     
-    NSInteger totalBefore = [self reloadExpandedDataForAdd:indexPath count:count];
+    NSInteger totalBefore = [self reloadExpandedDataForAdd:indexPath count:count includeAdd:YES];
     NSMutableArray *newExpandData = [NSMutableArray arrayWithArray:self.expandDatas[@(indexPath.section)]];
     
     data.indexPath = [NSIndexPath indexPathForRow:indexPath.row + totalBefore inSection:indexPath.section];
@@ -312,12 +317,25 @@
     return data.children;
 }
 
-- (NSInteger)reloadExpandedDataForAdd:(NSIndexPath *)parentIndexPath count:(NSInteger)count {
+/**
+ 添加Cell时更新已扩展数据
+
+ @param parentIndexPath 父节点
+ @param count 添加数量
+ @param isInclude 是否更新传进来的父节点数据，添加父节点时应设置True，添加子节点时应设置False
+ @return 添加父节点时返回真实的父节点前面的Cell数量，添加子节点时，调用者不应该处理
+ */
+- (NSInteger)reloadExpandedDataForAdd:(NSIndexPath *)parentIndexPath
+                                count:(NSInteger)count
+                           includeAdd:(BOOL)isInclude {
     NSInteger totalBefore = 0;
     
     for (ExpandData *tData in self.expandDatas[@(parentIndexPath.section)]) {
         if (tData.originalIndexPath.row < parentIndexPath.row) {
             totalBefore += tData.childrenCount;
+        }
+        else if (parentIndexPath.row == tData.originalIndexPath.row && !isInclude) {
+            continue;
         }
         else {
             tData.indexPath = [NSIndexPath indexPathForRow:tData.indexPath.row + count
